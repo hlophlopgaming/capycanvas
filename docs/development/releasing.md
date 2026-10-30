@@ -10,7 +10,7 @@ provide test and build details; the release sequence lives here.
 
 | Platform | Release channel today | What the agent must finish |
 | --- | --- | --- |
-| Linux x86_64 | Signed Flatpak download and project-hosted update repository | Publish the GitHub Release, deploy Flatpak updates, verify installation and updating. Flathub app publication is not configured by these workflows. |
+| Linux x86_64 | Signed Flatpak download and project-hosted update repository; AppImage download | Publish the GitHub Release, deploy Flatpak updates, verify installation and updating, and start the AppImage on a distribution without Flatpak. Flathub app publication is not configured by these workflows. |
 | Web | Downloadable static/PWA ZIP and `editor.capycanvas.art` | Publish the ZIP and deploy the editor from the same tag; verify the live revision and offline/update journeys. |
 | Android ARM64 | Direct Play-signed APK, Play internal and closed (`alpha`) testing | Verify both installation paths and check the closed track's current review state before promotion. Production Play rollout is outside this procedure. |
 | Windows x64 and ARM64 | Signed installer and portable ZIP for each architecture | Verify both downloads on each architecture. Microsoft Store is not set up; retain the generated MSIX packages and report Store submission as deferred. |
@@ -438,7 +438,7 @@ the same scripts developers run and the Rust version pinned in the workflow:
 
 | Job | Script | Output |
 | --- | --- | --- |
-| Linux | `packaging/flatpak/build.sh` and `packaging/flatpak/export.sh` with GNOME Platform and SDK 51 | `capycanvas-<version>-linux-x86_64.flatpak`; on a tag also `capycanvas.flatpakref` and `capycanvas-<version>-flatpak-repository.tar.zst` |
+| Linux | `packaging/flatpak/build.sh`, `packaging/flatpak/export.sh` and `packaging/appimage/build.sh` with GNOME Platform and SDK 51 | `capycanvas-<version>-linux-x86_64.flatpak` and `capycanvas-<version>-linux-x86_64.AppImage`; on a tag also `capycanvas.flatpakref` and `capycanvas-<version>-flatpak-repository.tar.zst` |
 | Web | `node apps/layer-web/package.mjs` | `capycanvas-<version>-web.zip` |
 | Android | `./gradlew :app:bundleRelease -PcapyAbi=arm64-v8a` | `capycanvas-<version>-android.aab`; on a tag also a Play-signed `capycanvas-<version>-android.apk` without Play licensing checks |
 | Windows x64 and ARM64 | `package.ps1 -Architecture x64` / `-Architecture arm64`, `package-msix.ps1`, `test-msix.ps1` and `package-installer.ps1` | Separate `capycanvas-<version>-windows-<architecture>.zip`, `-setup.exe` and `.msix` |
@@ -572,6 +572,17 @@ deployment. Only the latest published release that is neither a draft nor a
 prerelease can deploy, so an older release cannot replace the update source.
 Repository settings must select GitHub Actions as the Pages source and allow
 `main` and `v*` tags in the `github-pages` environment's deployment policies.
+
+### Linux AppImage
+
+`packaging/appimage/build.sh` runs after `packaging/flatpak/build.sh` and packages
+the same build as `capycanvas-<version>-linux-x86_64.AppImage`, using the pinned
+[AppImage type 2 runtime](https://github.com/AppImage/type2-runtime). It bundles
+the GNOME Platform 51 libraries the application needs beside the private GTK and
+fails if any library would be missing. glibc, the C++ runtime, graphics and
+Vulkan drivers, Wayland client libraries and fontconfig come from the host, so
+the AppImage runs on distributions with glibc 2.44 or newer. It is
+unsigned and has no update information; users replace the file to update.
 
 ### Signing credentials
 
