@@ -30,9 +30,9 @@ jobs:
           sha256sum target/flatpak/appimage-runtime-x86_64
           ls -la dist/appimage
           cd target/flatpak/AppDir
+          objdump -T usr/bin/capycanvas | grep -E 'GLIBC_2\.(39|4[0-9])' || true
           find . -type f -exec sh -c 'head -c 4 "$1" | grep -q ELF' _ {} \; -print | while read -r f; do
-            v=$(objdump -T "$f" 2>/dev/null | grep -o 'GLIBC_[0-9.]*' | sort -uV | tail -1); echo "$v $f"; done | sort -V | tail -25
-          objdump -T usr/bin/capycanvas | grep -E 'GLIBC_2\.(39|4[0-9])'
+            v=$(objdump -T "$f" 2>/dev/null | grep -o 'GLIBC_[0-9.]*' | sort -uV | tail -1 || true); echo "$v $f"; done | sort -V | tail -25
           ls usr/lib/capycanvas/gtk
           du -sh .
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
