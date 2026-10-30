@@ -1,0 +1,75 @@
+name: AppImage test
+on:
+  push:
+    branches: [appimage-test]
+  workflow_dispatch:
+permissions:
+  contents: read
+defaults:
+  run:
+    shell: bash
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Runtime checksum (test only)
+        run: |
+          curl --fail --location -o runtime https://github.com/AppImage/type2-runtime/releases/download/20251108/runtime-x86_64
+          sha256sum runtime
+          grep -q RUNTIME_SHA256 packaging/appimage/build.sh && sed -i "s/RUNTIME_SHA256/$(sha256sum runtime | cut -d' ' -f1)/" packaging/appimage/build.sh || true
+          rm runtime
+      - run: sudo apt-get update && sudo apt-get install -y flatpak librsvg2-common zstd squashfs-tools
+      - run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+      - run: bash packaging/flatpak/build.sh
+      - run: bash packaging/appimage/build.sh
+      - name: Report glibc floor and bundle size
+        run: |
+          ls -la dist/appimage
+          cd target/flatpak/AppDir
+          find . -type f -exec sh -c 'head -c 4 "$1" | grep -q ELF' _ {} \; -print | xargs objdump -T 2>/dev/null | grep -o 'GLIBC_[0-9.]*' | sort -uV | tail -1
+          find . -type f -exec sh -c 'head -c 4 "$1" | grep -q ELF' _ {} \; -print | xargs objdump -T 2>/dev/null | grep -o 'GLIBCXX_[0-9.]*' | sort -uV | tail -1
+          ls usr/lib/capycanvas/gtk
+          du -sh .
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: appimage-package
+          path: dist/appimage/*.AppImage
+          if-no-files-found: error
+  smoke:
+    needs: build
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: fedora:latest
+            install: dnf install -y libwayland-client libwayland-cursor libwayland-egl vulkan-loader fontconfig mesa-libEGL mesa-libgbm libdrm libstdc++ libX11 libxcb binutils
+          - image: archlinux:latest
+            install: pacman -Syu --noconfirm wayland vulkan-icd-loader fontconfig mesa libx11 binutils
+          - image: ubuntu:26.04
+            install: apt-get update && apt-get install -y libwayland-client0 libwayland-cursor0 libwayland-egl1 libvulkan1 libfontconfig1 libegl1 libgbm1 libdrm2 libx11-6 binutils
+          - image: debian:testing
+            install: apt-get update && apt-get install -y libwayland-client0 libwayland-cursor0 libwayland-egl1 libvulkan1 libfontconfig1 libegl1 libgbm1 libdrm2 libx11-6 binutils
+          - image: debian:13
+            install: apt-get update && apt-get install -y libwayland-client0 libwayland-cursor0 libwayland-egl1 libvulkan1 libfontconfig1 libegl1 libgbm1 libdrm2 libx11-6 binutils
+          - image: ubuntu:24.04
+            install: apt-get update && apt-get install -y libwayland-client0 libwayland-cursor0 libwayland-egl1 libvulkan1 libfontconfig1 libegl1 libgbm1 libdrm2 libx11-6 binutils
+          - image: opensuse/tumbleweed
+            install: zypper -n install libwayland-client0 libwayland-cursor0 libwayland-egl1 libvulkan1 fontconfig libEGL1 libgbm1 libdrm2 libX11-6 binutils
+    container: ${{ matrix.image }}
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: appimage-package
+      - run: ${{ matrix.install }}
+      - run: |
+          cat /etc/os-release | head -2
+          chmod +x ./*.AppImage
+          ./*.AppImage --appimage-extract > /dev/null
+          ldd squashfs-root/usr/bin/capycanvas | grep -v '=> /tmp\|squashfs-root' || true
+          ! ldd squashfs-root/usr/bin/capycanvas | grep 'not found'
+          ! (ldd squashfs-root/usr/bin/capycanvas 2>&1 | grep 'version .* not found')
+          for f in squashfs-root/usr/lib/capycanvas/gtk/*.so*; do ldd "$f" 2>&1 | grep 'not found' && echo "^ $f"; done || true
+          XDG_RUNTIME_DIR=/tmp timeout 20 squashfs-root/AppRun; echo "exit $?"
