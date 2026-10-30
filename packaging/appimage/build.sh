@@ -18,7 +18,7 @@ version=$(sed -n 's/^version = "\(.*\)"$/\1/p' Cargo.toml)
 runtime="$state/appimage-runtime-x86_64"
 curl --fail --location --retry 3 -o "$runtime" \
     https://github.com/AppImage/type2-runtime/releases/download/20251108/runtime-x86_64
-echo "RUNTIME_SHA256  $runtime" | sha256sum --check -
+echo "2fca8b443c92510f1483a883f60061ad09b46b978b2631c807cd873a47ec260d  $runtime" | sha256sum --check -
 appdir="$state/AppDir"
 rm -rf "$appdir" "$state/appimage.squashfs"
 mkdir -p "$appdir/usr"
