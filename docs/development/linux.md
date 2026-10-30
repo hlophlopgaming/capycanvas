@@ -384,7 +384,9 @@ bash packaging/flatpak/export.sh
 
 The local output is `dist/flatpak/capycanvas-<version>-linux-x86_64.flatpak`.
 Unsigned builds do not produce the reference or repository archive and do not
-configure the published update source. Native distribution builds can also use
+configure the published update source. After `build.sh`, `bash packaging/appimage/build.sh`
+packages the same build as `dist/appimage/capycanvas-<version>-linux-x86_64.AppImage`;
+it needs `squashfs-tools` ([Linux AppImage](releasing.md#linux-appimage)). Native distribution builds can also use
 the [Arch recipe](../../packaging/arch/README.md).
 
 Users need Flatpak, a Wayland session and hardware Vulkan; the runtime
