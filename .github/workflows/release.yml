@@ -99,10 +99,16 @@ jobs:
     environment: ${{ needs.version.outputs.publish == 'true' && 'release' || '' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - run: sudo apt-get update && sudo apt-get install -y flatpak librsvg2-common zstd
+      - run: sudo apt-get update && sudo apt-get install -y flatpak librsvg2-common zstd squashfs-tools
       - name: Enable Flatpak build namespaces on the hosted runner
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
       - run: bash packaging/flatpak/build.sh
+      - run: bash packaging/appimage/build.sh
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: appimage-package
+          path: dist/appimage/*.AppImage
+          if-no-files-found: error
       - if: env.SIGNED == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
