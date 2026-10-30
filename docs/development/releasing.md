@@ -581,7 +581,7 @@ the same build as `capycanvas-<version>-linux-x86_64.AppImage`, using the pinned
 the GNOME Platform 51 libraries the application needs beside the private GTK and
 fails if any library would be missing. glibc, the C++ runtime, graphics and
 Vulkan drivers, Wayland client libraries and fontconfig come from the host, so
-the AppImage runs on distributions with glibc GLIBC_FLOOR or newer. It is
+the AppImage runs on distributions with glibc 2.44 or newer. It is
 unsigned and has no update information; users replace the file to update.
 
 ### Signing credentials
